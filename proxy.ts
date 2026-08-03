@@ -26,11 +26,12 @@ export async function proxy(request: NextRequest) {
 
       if (setCookie) {
         const cookieArray = Array.isArray(setCookie) ? setCookie : [setCookie];
-        for (const cookieStr of cookieArray) {
-          const parsed = parseSetCookie(cookieStr);
 
-          if (parsed.value) {
-            cookieStore.set(parsed.name, parsed.value, parsed);
+        for (const cookieStr of cookieArray) {
+          const { name, value, ...options } = parseSetCookie(cookieStr);
+
+          if (value) {
+            cookieStore.set(name, value, options);
           }
         }
 
@@ -49,17 +50,26 @@ export async function proxy(request: NextRequest) {
           });
         }
       }
+
+      // refreshToken є, але оновити сесію не вдалося (немає нових cookies)
+      if (isPrivateRoute) {
+        return NextResponse.redirect(new URL("/sign-in", request.url));
+      }
+      if (isPublicRoute) {
+        return NextResponse.next();
+      }
     }
 
+    // немає ані accessToken, ані refreshToken
     if (isPublicRoute) {
       return NextResponse.next();
     }
-
     if (isPrivateRoute) {
       return NextResponse.redirect(new URL("/sign-in", request.url));
     }
   }
 
+  // accessToken є — користувач авторизований
   if (isPublicRoute) {
     return NextResponse.redirect(new URL("/", request.url));
   }
